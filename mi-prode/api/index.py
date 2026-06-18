@@ -7,7 +7,8 @@ app = FastAPI()
 
 # Esta URL la vas a sacar de tu panel de Supabase (Paso 3)
 # Por seguridad, en producción se usa una variable de entorno
-DATABASE_URL = os.environ.get("postgresql://postgres:kbHOAhjlfBYTg00T@db.ypedflapmsozywmfbjut.supabase.co:5432/postgres")
+# DATABASE_URL = os.environ.get("postgresql://postgres:kbHOAhjlfBYTg00T@db.ypedflapmsozywmfbjut.supabase.co:5432/postgres")
+DATABASE_URL = os.environ.get("DATABASE_URL", "aca-no-va-nada-dejas-este-texto-por-si-falla")
 
 def get_db_connection():
     # Función auxiliar para conectarse a PostgreSQL
