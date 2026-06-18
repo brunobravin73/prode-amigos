@@ -5,11 +5,17 @@ from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
-# Vercel va a tomar la variable de entorno que configuraste en su panel
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
+    # Añadimos sslmode para asegurar que conecte de forma encriptada a Supabase
+    if DATABASE_URL and "sslmode" not in DATABASE_URL:
+        # Si la URL no tiene el parámetro de SSL, se lo agregamos
+        connect_url = f"{DATABASE_URL}?sslmode=require"
+    else:
+        connect_url = DATABASE_URL
+        
+    return psycopg2.connect(connect_url)
 
 @app.get("/")
 def home():
@@ -19,7 +25,6 @@ def home():
 def listar_partidos():
     try:
         conn = get_db_connection()
-        # Usamos RealDictCursor para que nos devuelva los datos en formato JSON (clave: valor)
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT id, equipo_local, equipo_visitante, fecha_partido, estado FROM partidos;")
         partidos = cur.fetchall()
@@ -27,4 +32,5 @@ def listar_partidos():
         conn.close()
         return {"status": "success", "partidos": partidos}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        # Usamos repr(e) para que nos traiga el nombre real del error técnico
+        return {"status": "error", "message": repr(e)}
