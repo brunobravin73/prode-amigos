@@ -31,3 +31,8 @@ def test_db():
         return {"status": "Conexión exitosa a Supabase", "version": db_version[0]}
     except Exception as e:
         return {"status": "Error de conexión", "error": str(e)}
+
+#ruta comodin
+@app.get("/{path:path}")
+def read_all(path: str):
+    return {"status": "¡Prode Online!", "recibido": path}
