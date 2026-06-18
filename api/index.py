@@ -1,38 +1,30 @@
 from fastapi import FastAPI
 import os
 import psycopg2
-from pydantic import BaseModel
+from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
-# Esta URL la vas a sacar de tu panel de Supabase (Paso 3)
-# Por seguridad, en producción se usa una variable de entorno
-# DATABASE_URL = os.environ.get("postgresql://postgres:kbHOAhjlfBYTg00T@db.ypedflapmsozywmfbjut.supabase.co:5432/postgres")
-DATABASE_URL = os.environ.get("DATABASE_URL", "aca-no-va-nada-dejas-este-texto-por-si-falla")
+# Vercel va a tomar la variable de entorno que configuraste en su panel
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db_connection():
-    # Función auxiliar para conectarse a PostgreSQL
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    return psycopg2.connect(DATABASE_URL)
 
 @app.get("/")
 def home():
     return {"status": "¡Prode Online!", "mensaje": "Bienvenido al prode con amigos"}
 
-@app.get("/test-db")
-def test_db():
+@app.get("/partidos")
+def listar_partidos():
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT version();")
-        db_version = cur.fetchone()
+        # Usamos RealDictCursor para que nos devuelva los datos en formato JSON (clave: valor)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT id, equipo_local, equipo_visitante, fecha_partido, estado FROM partidos;")
+        partidos = cur.fetchall()
         cur.close()
         conn.close()
-        return {"status": "Conexión exitosa a Supabase", "version": db_version[0]}
+        return {"status": "success", "partidos": partidos}
     except Exception as e:
-        return {"status": "Error de conexión", "error": str(e)}
-
-#ruta comodin
-@app.get("/{path:path}")
-def read_all(path: str):
-    return {"status": "¡Prode Online!", "recibido": path}
+        return {"status": "error", "message": str(e)}
