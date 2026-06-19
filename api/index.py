@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 import os
 from pydantic import BaseModel
 from supabase import create_client, Client
+from datetime import datetime, timedelta, timezone
 
 app = FastAPI()
 
@@ -48,19 +49,54 @@ def registrar_usuario(datos: RegistroUsuario):
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
-# NUEVA RUTA: Guardar el pronóstico de un amigo
+# Guardar el pronóstico
 @app.post("/pronostico")
 def guardar_pronostico(datos: VotoPronostico):
     try:
+        # 1. Buscar a qué hora se juega el partido en la base de datos
+        partido_data = supabase.table("partidos").select("fecha_partido, equipo_local, equipo_visitante").eq("id", datos.partido_id).execute()
+        
+        if not partido_data.data:
+            return {"status": "error", "message": "El partido especificado no existe."}
+            
+        # Tomamos la fecha del partido (viene como texto de la base de datos)
+        # PostgreSQL la devuelve en formato ISO (ej: '2026-06-25T21:00:00+00:00')
+        fecha_partido_str = partido_data.data[0]["fecha_partido"]
+        
+        # Convertimos ese texto en un objeto de fecha de Python con Zona Horaria
+        fecha_partido = datetime.fromisoformat(fecha_partido_str)
+        
+        # 2. Obtener la hora actual exacta (en UTC, que es el estándar de internet)
+        ahora = datetime.now(timezone.utc)
+        
+        # 3. Definir el límite (ejemplo: 2 horas antes del partido)
+        # Podés cambiar el 'hours=2' por el tiempo que vos quieras (ej: hours=1, o minutes=30)
+        limite_votacion = fecha_partido - timedelta(hours=2)
+        
+        # 4. Controlar el reloj
+        if ahora > limite_votacion:
+            # Si ya pasamos el límite de tiempo
+            return {
+                "status": "bloqueado", 
+                "message": f"Ya no podés modificar este partido. El límite era 2 horas antes del comienzo."
+            }
+            
+        # 5. Si pasó el control de hora, procedemos a guardar/actualizar como antes
         nuevo_voto = {
             "usuario_id": datos.usuario_id,
             "partido_id": datos.partido_id,
             "goles_local_prediccion": datos.goles_local_prediccion,
-            "goles_visitante_prediccion": datos.goles_visitante_prediccion
+            "goles_visitante_prediccion": datos.goles_visitante_prediccion,
+            "puntos_ganados": 0
         }
-        # Gracias al UNIQUE que pusimos en SQL, si intenta votar dos veces el mismo partido, fallará
-        respuesta = supabase.table("pronosticos").insert(nuevo_voto).execute()
-        return {"status": "success", "mensaje": "Pronóstico guardado", "datos": respuesta.data}
+        
+        respuesta = supabase.table("pronosticos").upsert(
+            nuevo_voto, 
+            on_conflict="usuario_id,partido_id"
+        ).execute()
+        
+        return {"status": "success", "mensaje": "Pronóstico guardado/actualizado con éxito", "datos": respuesta.data}
+        
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
