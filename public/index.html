@@ -104,10 +104,36 @@
                     mostrarAlerta('Error de conexión con el servidor.', 'bg-red-500/20 text-red-400');
                 }
             } else {
-                // Lógica de Login Temporal (Por ahora simulada, luego hacemos la ruta en Python)
-                mostrarAlerta('Ingresando...', 'bg-blue-500/20 text-blue-400');
-                console.log('Login de:', email);
-                // Aquí guardaremos el usuario en LocalStorage y saltaremos al fixture
+                // Lógica de Login Real apuntando a tu nueva ruta de Python
+                try {
+                    mostrarAlerta('Ingresando...', 'bg-blue-500/20 text-blue-400');
+        
+                    const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'success') {
+                        // Guardamos los datos del usuario en la memoria del navegador
+                        localStorage.setItem('usuario_id', data.usuario.id);
+                        localStorage.setItem('usuario_nombre', data.usuario.nombre);
+            
+                        mostrarAlerta('¡Ingreso exitoso! Redireccionando...', 'bg-green-500/20 text-green-400');
+            
+                        // Temporalmente tiramos un alert para verificar que funciona. 
+                        // Luego, acá lo mandaremos a la pantalla de la fecha (fixture.html)
+                        setTimeout(() => {
+                            alert(`¡Bienvenido ${data.usuario.nombre}! ID: ${data.usuario.id}`);
+                        }, 500);
+            
+                    } else {
+                        mostrarAlerta(data.message, 'bg-red-500/20 text-red-400');
+                    }
+                } catch (err) {
+                    mostrarAlerta('Error de conexión con el servidor.', 'bg-red-500/20 text-red-400');
+                }
             }
         });
 
