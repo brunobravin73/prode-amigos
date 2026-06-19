@@ -160,3 +160,18 @@ def calcular_puntos_partido(partido_id: int, goles_local_real: int, goles_visita
 
     except Exception as e:
         return {"status": "error", "message": repr(e)}
+
+
+# Tabla de posiciones en tiempo real
+@app.get("/posiciones")
+def obtener_tabla_posiciones():
+    try:
+        # Traemos el nombre, email y puntos de los usuarios, ordenados por puntos de forma descendente (desc=True)
+        respuesta = supabase.table("usuarios")\
+            .select("id, nombre, puntos_totales")\
+            .order("puntos_totales", desc=True)\
+            .execute()
+            
+        return {"status": "success", "tabla": respuesta.data}
+    except Exception as e:
+        return {"status": "error", "message": repr(e)}
