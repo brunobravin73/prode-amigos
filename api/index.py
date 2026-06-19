@@ -24,6 +24,10 @@ class VotoPronostico(BaseModel):
     goles_local_prediccion: int
     goles_visitante_prediccion: int
 
+class LoginUsuario(BaseModel):
+    email: str
+    password: str
+
 # --- RUTAS DE LA API (Todas van a responder con /api/...) ---
 
 @app.get("/api")
@@ -48,6 +52,35 @@ def registrar_usuario(datos: RegistroUsuario):
         }
         respuesta = supabase.table("usuarios").insert(nuevo_usuario).execute()
         return {"status": "success", "mensaje": "Usuario registrado con éxito", "usuario": respuesta.data}
+    except Exception as e:
+        return {"status": "error", "message": repr(e)}
+
+@app.post("/api/login")
+def login_usuario(datos: LoginUsuario):
+    try:
+        # 1. Buscamos el usuario por email
+        respuesta = supabase.table("usuarios").select("*").eq("email", datos.email).execute()
+        
+        # Si no encuentra ninguna fila, el mail no existe
+        if not respuesta.data:
+            return {"status": "error", "message": "El correo electrónico no está registrado."}
+            
+        usuario = respuesta.data[0]
+        
+        # 2. Comparamos la contraseña (por ahora en texto plano, directo)
+        if usuario["password_hash"] != datos.password:
+            return {"status": "error", "message": "Contraseña incorrecta."}
+            
+        # 3. Si coincide, logueado con éxito
+        return {
+            "status": "success", 
+            "mensaje": "Ingreso exitoso", 
+            "usuario": {
+                "id": usuario["id"],
+                "nombre": usuario["nombre"],
+                "puntos_totales": usuario["puntos_totales"]
+            }
+        }
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
