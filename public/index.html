@@ -54,7 +54,6 @@
 
         let modoRegistro = false;
 
-        // Cambiar entre modo Login y modo Registro
         btnToggle.addEventListener('click', () => {
             modoRegistro = !modoRegistro;
             if (modoRegistro) {
@@ -75,7 +74,6 @@
             alertBox.classList.add('hidden');
         });
 
-        // Procesar el formulario
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             alertBox.classList.add('hidden');
@@ -85,7 +83,6 @@
             const nombre = document.getElementById('nombre').value;
 
             if (modoRegistro) {
-                // Lógica de Registro apuntando a tu API de Python
                 try {
                     const res = await fetch('/api/registro', {
                         method: 'POST',
@@ -96,7 +93,7 @@
 
                     if (data.status === 'success') {
                         mostrarAlerta('¡Registro exitoso! Ya podés iniciar sesión.', 'bg-green-500/20 text-green-400');
-                        btnToggle.click(); // Cambia automáticamente a modo Login
+                        btnToggle.click();
                     } else {
                         mostrarAlerta('Error: ' + data.message, 'bg-red-500/20 text-red-400');
                     }
@@ -104,10 +101,9 @@
                     mostrarAlerta('Error de conexión con el servidor.', 'bg-red-500/20 text-red-400');
                 }
             } else {
-                // Lógica de Login Real apuntando a tu nueva ruta de Python
                 try {
                     mostrarAlerta('Ingresando...', 'bg-blue-500/20 text-blue-400');
-        
+                    
                     const res = await fetch('/api/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -116,18 +112,15 @@
                     const data = await res.json();
 
                     if (data.status === 'success') {
-                        // Guardamos los datos del usuario en la memoria del navegador
                         localStorage.setItem('usuario_id', data.usuario.id);
                         localStorage.setItem('usuario_nombre', data.usuario.nombre);
-            
+                        
                         mostrarAlerta('¡Ingreso exitoso! Redireccionando...', 'bg-green-500/20 text-green-400');
-            
-                        // Temporalmente tiramos un alert para verificar que funciona. 
-                        // Luego, acá lo mandaremos a la pantalla de la fecha (fixture.html)
+                        
                         setTimeout(() => {
                             alert(`¡Bienvenido ${data.usuario.nombre}! ID: ${data.usuario.id}`);
                         }, 500);
-            
+                        
                     } else {
                         mostrarAlerta(data.message, 'bg-red-500/20 text-red-400');
                     }
