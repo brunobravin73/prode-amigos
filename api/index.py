@@ -36,6 +36,8 @@ def listar_partidos():
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
+#registro de usuario
+@app.post("/api/registro")
 @app.post("/registro")
 def registrar_usuario(datos: RegistroUsuario):
     try:
