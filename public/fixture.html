@@ -43,17 +43,15 @@
         const alertFixture = document.getElementById('alert-fixture');
         const contenedor = document.getElementById('contenedor-partidos');
 
-      // 2. Cargar los partidos desde la API de Python
+// 2. Cargar los partidos desde la API de Python
         async function cargarPartidos() {
             try {
-                // Le pasamos el ID del usuario logueado a la API para que devuelva sus votos
                 const res = await fetch(`/api/partidos?usuario_id=${usuarioId}`);
                 const data = await res.json();
 
                 if (data.status === 'success' && data.partidos.length > 0) {
                     contenedor.innerHTML = ''; // Limpiamos el "Cargando..."
                     
-
                     data.partidos.forEach(partido => {
                         const fecha = new Date(partido.fecha_partido).toLocaleString('es-AR', {
                             day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
@@ -61,18 +59,14 @@
 
                         const esFinalizado = partido.estado === 'finalizado';
                         const tieneVoto = partido.voto_local !== "";
-
-                        // Valores que van dentro de los casilleros numéricos
-                        // Si terminó, el casillero muestra el RESULTADO REAL. Si está pendiente, muestra el voto o 0.
+                        
                         const valorLocal = esFinalizado ? (partido.goles_local_real ?? 0) : (tieneVoto ? partido.voto_local : 0);
                         const valorVisitante = esFinalizado ? (partido.goles_visitante_real ?? 0) : (tieneVoto ? partido.voto_visitante : 0);
 
-                        // Estilos dinámicos para los inputs
                         const inputAtributos = esFinalizado 
                             ? 'disabled class="w-12 p-2 rounded-lg bg-gray-800 border border-gray-700 text-center font-black text-lg text-green-400"' 
-                            : 'class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400"';
-            
-                        // Pie de la tarjeta condicional
+                            : `onchange="autoGuardar(${partido.id})" class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400"`;
+                        
                         let footerHtml = '';
                         if (esFinalizado) {
                             const pronoTexto = tieneVoto ? `${partido.voto_local} x ${partido.voto_visitante}` : 'No apostaste';
@@ -82,29 +76,32 @@
                                     <span class="bg-gray-700/40 px-2 py-1 rounded text-gray-300 font-medium">Tu prode: <strong class="text-amber-400">${pronoTexto}</strong></span>
                                 </div>`;
                         } else {
-                            const textoBoton = tieneVoto ? 'Modificar Predicción' : 'Guardar Predicción';
-                            const colorBoton = tieneVoto ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-700 hover:bg-green-500 hover:text-gray-900 text-white';
-                
-                            footerHtml = `<button onclick="enviarPronostico(${partido.id})" class="w-full mt-4 ${colorBoton} text-xs font-bold py-2 rounded-lg transition duration-200">${textoBoton}</button>`;
+                            footerHtml = `
+                                <div class="mt-3 pt-2 flex justify-end items-center h-5">
+                                    <span id="status-${partido.id}" class="text-[11px] font-medium text-gray-500 transition-all duration-300">
+                                        ${tieneVoto ? '✓ Guardado' : '✍️ Pendiente de cambio'}
+                                    </span>
+                                </div>`;
                         }
 
                         const tarjeta = document.createElement('div');
-                        tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md";
+                        tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md transition duration-200";
+                        tarjeta.id = `tarjeta-${partido.id}`;
                         tarjeta.innerHTML = `
                             <div class="text-center text-xs text-gray-400 mb-3 font-medium">${fecha} hs</div>
-                
+                            
                             <div class="flex items-center justify-between gap-2">
                                 <div class="w-1/3 text-right font-semibold text-sm truncate">${partido.equipo_local}</div>
-                    
+                                
                                 <div class="flex items-center justify-center gap-2 w-1/3">
-                                    <input type="number" id="local-${partido.id}" min="0" placeholder="0" value="${valorLocal}" ${inputAtributos}>
+                                    <input type="number" id="local-${partido.id}" min="0" value="${valorLocal}" ${inputAtributos}>
                                     <span class="text-gray-500 font-bold">x</span>
-                                    <input type="number" id="visitante-${partido.id}" min="0" placeholder="0" value="${valorVisitante}" ${inputAtributos}>
+                                    <input type="number" id="visitante-${partido.id}" min="0" value="${valorVisitante}" ${inputAtributos}>
                                 </div>
-                    
+                                
                                 <div class="w-1/3 text-left font-semibold text-sm truncate">${partido.equipo_visitante}</div>
                             </div>
-                
+                            
                             ${footerHtml}
                         `;
                         contenedor.appendChild(tarjeta);
@@ -117,40 +114,45 @@
             }
         }
 
-        // 3. Función para mandar el voto a la API
-        async function enviarPronostico(partidoId) {
-            alertFixture.classList.add('hidden');
-            
-            const golesLocal = document.getElementById(`local-${partidoId}`).value;
-            const golesVisitante = document.getElementById(`visitante-${partidoId}`).value;
+        // Nueva función de guardado automático y silencioso
+        async function autoGuardar(partidoId) {
+            const gLocal = document.getElementById(`local-${partidoId}`).value;
+            const gVisitante = document.getElementById(`visitante-${partidoId}`).value;
+            const statusLabel = document.getElementById(`status-${partidoId}`);
+            const tarjeta = document.getElementById(`tarjeta-${partidoId}`);
 
-            if (golesLocal === '' || golesVisitante === '') {
-                mostrarAlerta('Por favor, completá ambos casilleros antes de guardar.', 'bg-yellow-500/20 text-yellow-400');
-                return;
-            }
+            if (gLocal === '' || gVisitante === '') return;
+
+            statusLabel.innerText = "Guardando...";
+            statusLabel.className = "text-[11px] font-medium text-blue-400 animate-pulse";
 
             try {
-                const res = await fetch('/api/pronostico', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        usuario_id: parseInt(usuarioId),
-                        partido_id: partidoId,
-                        goles_local_prediccion: parseInt(golesLocal),
-                        goles_visitante_prediccion: parseInt(golesVisitante)
-                    })
+                const res = await fetch(`/api/pronostico?usuario_id=${usuarioId}&partido_id=${partidoId}&goles_local_prediccion=${gLocal}&goles_visitante_prediccion=${gVisitante}`, {
+                    method: 'POST'
                 });
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    mostrarAlerta('¡Pronóstico guardado correctamente!', 'bg-green-500/20 text-green-400');
-                } else if (data.status === 'bloqueado') {
-                    mostrarAlerta(data.message, 'bg-yellow-500/20 text-yellow-400');
+                    statusLabel.innerText = "✓ Guardado automáticamente";
+                    statusLabel.className = "text-[11px] font-bold text-green-400";
+                    
+                    tarjeta.classList.remove('border-gray-700');
+                    tarjeta.classList.add('border-green-500/50', 'bg-gray-800/90');
+                    
+                    setTimeout(() => {
+                        tarjeta.classList.remove('border-green-500/50', 'bg-gray-800/90');
+                        tarjeta.classList.add('border-gray-700');
+                        statusLabel.innerText = "✓ Guardado";
+                        statusLabel.className = "text-[11px] font-medium text-gray-400";
+                    }, 2000);
+
                 } else {
-                    mostrarAlerta('Error: ' + data.message, 'bg-red-500/20 text-red-400');
+                    statusLabel.innerText = "❌ Error al guardar";
+                    statusLabel.className = "text-[11px] font-bold text-red-400";
                 }
             } catch (err) {
-                mostrarAlerta('Error de red al intentar guardar.', 'bg-red-500/20 text-red-400');
+                statusLabel.innerText = "❌ Error de conexión";
+                statusLabel.className = "text-[11px] font-bold text-red-400";
             }
         }
 
