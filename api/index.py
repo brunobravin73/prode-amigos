@@ -104,28 +104,28 @@ def login_usuario(datos: LoginUsuario):
         return {"status": "error", "message": repr(e)}
 
 @app.post("/api/pronostico")
-def guardar_pronostico(datos: VotoPronostico):
+def guardar_o_actualizar_pronostico(usuario_id: int, partido_id: int, goles_local_prediccion: int, goles_visitante_prediccion: int):
     try:
-        partido_data = supabase.table("partidos").select("fecha_partido").eq("id", datos.partido_id).execute()
-        if not partido_data.data:
-            return {"status": "error", "message": "El partido no existe."}
-            
-        fecha_partido = datetime.fromisoformat(partido_data.data[0]["fecha_partido"])
-        ahora = datetime.now(timezone.utc)
-        limite_votacion = fecha_partido - timedelta(hours=2)
+        # 1. Verificar si el usuario ya hizo un pronóstico previo para este partido
+        existente = supabase.table("pronosticos").select("id").eq("usuario_id", usuario_id).eq("partido_id", partido_id).execute()
         
-        if ahora > limite_votacion:
-            return {"status": "bloqueado", "message": "Ya no podés modificar este partido. El límite era 2 horas antes."}
-            
-        nuevo_voto = {
-            "usuario_id": datos.usuario_id,
-            "partido_id": datos.partido_id,
-            "goles_local_prediccion": datos.goles_local_prediccion,
-            "goles_visitante_prediccion": datos.goles_visitante_prediccion,
-            "puntos_ganados": 0
+        datos_pronostico = {
+            "usuario_id": usuario_id,
+            "partido_id": partido_id,
+            "goles_local_prediccion": goles_local_prediccion,
+            "goles_visitante_prediccion": goles_visitante_prediccion
         }
-        respuesta = supabase.table("pronosticos").upsert(nuevo_voto, on_conflict="usuario_id,partido_id").execute()
-        return {"status": "success", "mensaje": "Pronóstico guardado con éxito", "datos": respuesta.data}
+
+        if existente.data:
+            # Si ya existía, lo actualizamos (Modificación)
+            id_prono = existente.data[0]["id"]
+            supabase.table("pronosticos").update(datos_pronostico).eq("id", id_prono).execute()
+            return {"status": "success", "message": "Pronóstico modificado correctamente"}
+        else:
+            # Si es nuevo, lo insertamos (Guardado inicial)
+            supabase.table("pronosticos").insert(datos_pronostico).execute()
+            return {"status": "success", "message": "Pronóstico creado correctamente"}
+
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
@@ -133,8 +133,8 @@ def guardar_pronostico(datos: VotoPronostico):
 def calcular_puntos_partido(partido_id: int, goles_local_real: int, goles_visitante_real: int, clave_admin: str = None):
     try:
         # CONTROL DE SEGURIDAD: Definí acá tu contraseña secreta
-        # Aqui hacer cambio de clave
-        if clave_admin != "ladorni737$ñ":
+        # Podés cambiar "admin1234" por la clave que vos quieras
+        if clave_admin != "admin1234":
             return {"status": "error", "message": "Clave de administrador incorrecta o ausente."}
 
         # 1. Actualizar el partido con el resultado real y pasarlo a 'finalizado'
@@ -203,7 +203,7 @@ def obtener_tabla_posiciones():
 @app.post("/api/crear-partido")
 def crear_nuevo_partido(equipo_local: str, equipo_visitante: str, fecha_partido: str, clave_admin: str = None):
     try:
-        if clave_admin != "ladorni737$ñ":
+        if clave_admin != "admin1234":
             return {"status": "error", "message": "Clave de administrador incorrecta."}
 
         # Insertamos el partido nuevo directo en Supabase
