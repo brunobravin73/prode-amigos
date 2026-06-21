@@ -34,9 +34,9 @@
         const usuarioNombre = localStorage.getItem('usuario_nombre');
 
         if (!usuarioId) {
-            // Si no hay ID, lo mandamos  al login
             window.location.href = '/';
         } else {
+            // Asignamos el nombre de usuario de la memoria al elemento HTML
             document.getElementById('nombre-jugador').innerText = usuarioNombre;
         }
 
@@ -57,13 +57,15 @@
                             day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
                         });
 
-                        // Validamos si el partido está finalizado
+                        // Evaluamos el estado del partido
                         const esFinalizado = partido.estado === 'finalizado';
 
-                        // Si está finalizado, deshabilitamos campos y ocultamos botón. 
-                        // Además, podemos mostrar el resultado real si quisiéramos añadir los campos goles_local_real a la API.
-                        const inputAtributos = esFinalizado ? 'disabled class="w-12 p-2 rounded-lg bg-gray-800 border border-gray-700 text-center font-bold text-lg text-gray-500"' : 'class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400"';
-    
+                        // Si está finalizado se bloquean los campos numéricos (disabled) y cambian de color
+                        const inputAtributos = esFinalizado 
+                            ? 'disabled class="w-12 p-2 rounded-lg bg-gray-800 border border-gray-700 text-center font-bold text-lg text-gray-500"' 
+                            : 'class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400"';
+                        
+                        // Si está finalizado se oculta el botón y se pone un aviso reflectivo amarillo
                         const botonHtml = esFinalizado 
                             ? `<div class="text-center text-xs font-semibold text-amber-400 bg-amber-500/10 p-2 rounded-lg mt-4">⚠️ Partido cerrado (No se permiten más apuestas)</div>`
                             : `<button onclick="enviarPronostico(${partido.id})" class="w-full mt-4 bg-gray-700 hover:bg-green-500 hover:text-gray-900 text-xs font-bold py-2 rounded-lg transition duration-200">Guardar Predicción</button>`;
@@ -72,23 +74,21 @@
                         tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md";
                         tarjeta.innerHTML = `
                             <div class="text-center text-xs text-gray-400 mb-3 font-medium">${fecha} hs - Estado: <span class="${esFinalizado ? 'text-red-400' : 'text-green-400'} font-bold">${partido.estado}</span></div>
-        
+                            
                             <div class="flex items-center justify-between gap-2">
                                 <div class="w-1/3 text-right font-semibold text-sm truncate">${partido.equipo_local}</div>
-            
+                                
                                 <div class="flex items-center justify-center gap-2 w-1/3">
                                     <input type="number" id="local-${partido.id}" min="0" placeholder="0" ${inputAtributos}>
                                     <span class="text-gray-500 font-bold">x</span>
                                     <input type="number" id="visitante-${partido.id}" min="0" placeholder="0" ${inputAtributos}>
                                 </div>
-            
+                                
                                 <div class="w-1/3 text-left font-semibold text-sm truncate">${partido.equipo_visitante}</div>
                             </div>
-        
+                            
                             ${botonHtml}
                         `;
-                        contenedor.appendChild(tarjeta);
-                    });
                         contenedor.appendChild(tarjeta);
                     });
                 } else {
@@ -106,7 +106,6 @@
             const golesLocal = document.getElementById(`local-${partidoId}`).value;
             const golesVisitante = document.getElementById(`visitante-${partidoId}`).value;
 
-            // Validación simple
             if (golesLocal === '' || golesVisitante === '') {
                 mostrarAlerta('Por favor, completá ambos casilleros antes de guardar.', 'bg-yellow-500/20 text-yellow-400');
                 return;
@@ -143,7 +142,6 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Arrancar la carga apenas abre la página
         cargarPartidos();
     </script>
 </body>
