@@ -118,8 +118,8 @@
                         mostrarAlerta('¡Ingreso exitoso! Redireccionando...', 'bg-green-500/20 text-green-400');
                         
                         setTimeout(() => {
-                            alert(`¡Bienvenido ${data.usuario.nombre}! ID: ${data.usuario.id}`);
-                        }, 500);
+                            window.location.href = '/fixture.html';
+                        }, 1000);
                         
                     } else {
                         mostrarAlerta(data.message, 'bg-red-500/20 text-red-400');
