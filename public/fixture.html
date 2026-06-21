@@ -46,7 +46,8 @@
         // 2. Cargar los partidos desde la API de Python
         async function cargarPartidos() {
             try {
-                const res = await fetch('/api/partidos');
+                // Le pasamos el ID del usuario logueado a la API para que devuelva sus votos
+                const res = await fetch(`/api/partidos?usuario_id=${usuarioId}`);
                 const data = await res.json();
 
                 if (data.status === 'success' && data.partidos.length > 0) {
@@ -57,7 +58,6 @@
                             day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
                         });
 
-                        // Evaluamos el estado del partido
                         const esFinalizado = partido.estado === 'finalizado';
 
                         // Si está finalizado se bloquean los campos numéricos (disabled) y cambian de color
@@ -70,6 +70,10 @@
                             ? `<div class="text-center text-xs font-semibold text-amber-400 bg-amber-500/10 p-2 rounded-lg mt-4">⚠️ Partido cerrado (No se permiten más apuestas)</div>`
                             : `<button onclick="enviarPronostico(${partido.id})" class="w-full mt-4 bg-gray-700 hover:bg-green-500 hover:text-gray-900 text-xs font-bold py-2 rounded-lg transition duration-200">Guardar Predicción</button>`;
 
+                        // Traemos los goles que ya estaban guardados o vacío si no había votado
+                        const valorLocal = partido.voto_local !== undefined ? partido.voto_local : '';
+                        const valorVisitante = partido.voto_visitante !== undefined ? partido.voto_visitante : '';
+
                         const tarjeta = document.createElement('div');
                         tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md";
                         tarjeta.innerHTML = `
@@ -79,9 +83,9 @@
                                 <div class="w-1/3 text-right font-semibold text-sm truncate">${partido.equipo_local}</div>
                                 
                                 <div class="flex items-center justify-center gap-2 w-1/3">
-                                    <input type="number" id="local-${partido.id}" min="0" placeholder="0" ${inputAtributos}>
+                                    <input type="number" id="local-${partido.id}" min="0" placeholder="0" value="${valorLocal}" ${inputAtributos}>
                                     <span class="text-gray-500 font-bold">x</span>
-                                    <input type="number" id="visitante-${partido.id}" min="0" placeholder="0" ${inputAtributos}>
+                                    <input type="number" id="visitante-${partido.id}" min="0" placeholder="0" value="${valorVisitante}" ${inputAtributos}>
                                 </div>
                                 
                                 <div class="w-1/3 text-left font-semibold text-sm truncate">${partido.equipo_visitante}</div>
