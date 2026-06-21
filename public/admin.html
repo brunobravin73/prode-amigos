@@ -8,23 +8,49 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col items-center">
 
-    <div class="w-full max-w-md">
-        <div class="mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
+    <div class="w-full max-w-md space-y-6">
+        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
             <h2 class="text-xl font-bold text-red-400">⚙️ Panel Administrador</h2>
-            <p class="text-xs text-gray-400 mt-1">Cierre de partidos y asignación de puntos</p>
+            <p class="text-xs text-gray-400 mt-1">Gestión integral del Torneo</p>
         </div>
 
-        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6 space-y-2">
+        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 space-y-2">
             <label class="block text-xs font-semibold text-gray-400 uppercase">Clave Secreta Admin</label>
             <input type="password" id="clave-admin" placeholder="Ingresá la contraseña secreta" 
                 class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 font-mono text-white text-sm focus:outline-none focus:border-red-400">
         </div>
 
-        <h3 class="text-md font-bold mb-4 text-gray-300 uppercase tracking-wider text-xs">Partidos por Cerrar</h3>
-        <div id="alert-admin" class="hidden p-3 rounded-lg mb-4 text-sm text-center font-semibold"></div>
+        <div id="alert-admin" class="hidden p-3 rounded-lg text-sm text-center font-semibold"></div>
 
-        <div id="contenedor-admin" class="space-y-4">
-            <p class="text-center text-gray-500 py-4">Buscando partidos pendientes...</p>
+        <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-xl space-y-3">
+            <h3 class="text-sm font-bold text-green-400 uppercase tracking-wider mb-2">🆕 Crear Nuevo Partido</h3>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase">Local (Ej: 🇦🇷 Argentina)</label>
+                    <input type="text" id="nuevo-local" placeholder="Equipo Local" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase">Visitante (Ej: 🇧🇷 Brasil)</label>
+                    <input type="text" id="nuevo-visitante" placeholder="Equipo Visitante" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white focus:outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] text-gray-400 uppercase">Fecha y Hora del Encuentro</label>
+                <input type="datetime-local" id="nuevo-fecha" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white focus:outline-none">
+            </div>
+
+            <button onclick="crearPartido()" class="w-full bg-green-600 hover:bg-green-700 text-xs font-bold py-2 rounded-lg transition duration-200 shadow-md">
+                ➕ Insertar Partido al Fixture
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider text-xs">🔒 Partidos por Cerrar</h3>
+            <div id="contenedor-admin" class="space-y-4">
+                <p class="text-center text-gray-500 py-4">Buscando partidos pendientes...</p>
+            </div>
         </div>
     </div>
 
@@ -38,7 +64,6 @@
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    // Filtramos únicamente los partidos que estén con estado 'pendiente'
                     const pendientes = data.partidos.filter(p => p.estado === 'pendiente');
 
                     if (pendientes.length > 0) {
@@ -52,16 +77,16 @@
                                     
                                     <div class="flex items-center justify-center gap-2 w-1/3">
                                         <input type="number" id="real-local-${partido.id}" min="0" placeholder="0" 
-                                            class="w-12 p-2 rounded-lg bg-gray-700 border border-red-500/40 text-center font-extrabold text-lg text-white focus:outline-none focus:border-red-400">
+                                            class="w-12 p-2 rounded-lg bg-gray-700 border border-red-500/40 text-center font-extrabold text-lg text-white focus:outline-none">
                                         <span class="text-gray-500 font-bold">x</span>
                                         <input type="number" id="real-visitante-${partido.id}" min="0" placeholder="0" 
-                                            class="w-12 p-2 rounded-lg bg-gray-700 border border-red-500/40 text-center font-extrabold text-lg text-white focus:outline-none focus:border-red-400">
+                                            class="w-12 p-2 rounded-lg bg-gray-700 border border-red-500/40 text-center font-extrabold text-lg text-white focus:outline-none">
                                     </div>
                                     
                                     <div class="w-1/3 text-left font-bold text-sm truncate text-gray-200">${partido.equipo_visitante}</div>
                                 </div>
                                 <button onclick="finalizarPartido(${partido.id})" 
-                                    class="w-full mt-4 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg transition duration-200 shadow-md shadow-red-900/20">
+                                    class="w-full mt-4 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg transition duration-200">
                                     🔒 Guardar Resultado y Calcular Puntos
                                 </button>
                             `;
@@ -73,6 +98,40 @@
                 }
             } catch (err) {
                 contenedor.innerHTML = '<p class="text-center text-red-400 py-4">Error al conectar con la API.</p>';
+            }
+        }
+
+        async function crearPartido() {
+            alertAdmin.classList.add('hidden');
+            const clave = document.getElementById('clave-admin').value;
+            const local = document.getElementById('nuevo-local').value.trim();
+            const visitante = document.getElementById('nuevo-visitante').value.trim();
+            const fecha = document.getElementById('nuevo-fecha').value;
+
+            if (!clave || !local || !visitante || !fecha) {
+                mostrarAlerta('Por favor completá todos los campos de creación y la clave de admin.', 'bg-yellow-500/20 text-yellow-400');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/crear-partido?equipo_local=${encodeURIComponent(local)}&equipo_visitante=${encodeURIComponent(visitante)}&fecha_partido=${encodeURIComponent(fecha)}&clave_admin=${clave}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    mostrarAlerta('¡Partido creado exitosamente en el fixture!', 'bg-green-500/20 text-green-400');
+                    // Limpiamos el formulario
+                    document.getElementById('nuevo-local').value = '';
+                    document.getElementById('nuevo-visitante').value = '';
+                    document.getElementById('nuevo-fecha').value = '';
+                    // Recargamos la lista inferior de pendientes
+                    cargarPartidosPendientes();
+                } else {
+                    mostrarAlerta('Error: ' + data.message, 'bg-red-500/20 text-red-400');
+                }
+            } catch (err) {
+                mostrarAlerta('Error de red al intentar crear el partido.', 'bg-red-500/20 text-red-400');
             }
         }
 
@@ -88,7 +147,6 @@
             }
 
             try {
-                // Mandamos la info y la clave como parámetros en la URL (?clave_admin=...)
                 const res = await fetch(`/api/calcular-puntos/${partidoId}?goles_local_real=${gLocal}&goles_visitante_real=${gVisitante}&clave_admin=${clave}`, {
                     method: 'POST'
                 });
@@ -96,7 +154,7 @@
 
                 if (data.status === 'success') {
                     mostrarAlerta('¡Partido cerrado con éxito! Puntos repartidos.', 'bg-green-500/20 text-green-400');
-                    cargarPartidosPendientes(); // Volvemos a cargar la lista para que desaparezca el partido cerrado
+                    cargarPartidosPendientes();
                 } else {
                     mostrarAlerta('Error: ' + data.message, 'bg-red-500/20 text-red-400');
                 }
@@ -107,7 +165,7 @@
 
         function mostrarAlerta(mensaje, clases) {
             alertAdmin.innerText = mensaje;
-            alertAdmin.className = `p-3 rounded-lg mb-4 text-sm text-center font-semibold ${clases}`;
+            alertAdmin.className = `p-3 rounded-lg text-sm text-center font-semibold ${clases}`;
         }
 
         cargarPartidosPendientes();
