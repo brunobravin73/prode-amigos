@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prode con Amigos - Fixture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col items-center">
+
+    <div class="w-full max-w-md">
+        <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700">
+            <div>
+                <p class="text-xs text-gray-400">Jugador</p>
+                <h2 class="text-xl font-bold text-green-400" id="nombre-jugador">...</h2>
+            </div>
+            <a href="/api/posiciones" class="bg-blue-600 hover:bg-blue-700 text-xs font-bold py-2 px-3 rounded-lg transition">
+                🏆 Posiciones
+            </a>
+        </div>
+
+        <h3 class="text-lg font-bold mb-4 text-gray-300">Próximos Partidos</h3>
+
+        <div id="alert-fixture" class="hidden p-3 rounded-lg mb-4 text-sm text-center font-semibold"></div>
+
+        <div id="contenedor-partidos" class="space-y-4">
+            <p class="text-center text-gray-500 py-4">Cargando partidos...</p>
+        </div>
+    </div>
+
+    <script>
+        // 1. Verificar si el usuario está logueado
+        const usuarioId = localStorage.getItem('usuario_id');
+        const usuarioNombre = localStorage.getItem('usuario_nombre');
+
+        if (!usuarioId) {
+            // Si no hay ID, lo mandamos de patitas al login
+            window.location.href = '/';
+        } else {
+            document.getElementById('nombre-jugador').innerText = usuarioNombre;
+        }
+
+        const alertFixture = document.getElementById('alert-fixture');
+        const contenedor = document.getElementById('contenedor-partidos');
+
+        // 2. Cargar los partidos desde la API de Python
+        async function cargarPartidos() {
+            try {
+                const res = await fetch('/api/partidos');
+                const data = await res.json();
+
+                if (data.status === 'success' && data.partidos.length > 0) {
+                    contenedor.innerHTML = ''; // Limpiamos el "Cargando..."
+                    
+                    data.partidos.forEach(partido => {
+                        // Formateamos la fecha para que sea legible
+                        const fecha = new Date(partido.fecha_partido).toLocaleString('es-AR', {
+                            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                        });
+
+                        // Creamos la tarjeta del partido en HTML
+                        const tarjeta = document.createElement('div');
+                        tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md";
+                        tarjeta.innerHTML = `
+                            <div class="text-center text-xs text-gray-400 mb-3 font-medium">${fecha} hs - Estado: ${partido.estado}</div>
+                            
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="w-1/3 text-right font-semibold text-sm truncate">${partido.equipo_local}</div>
+                                
+                                <div class="flex items-center justify-center gap-2 w-1/3">
+                                    <input type="number" id="local-${partido.id}" min="0" placeholder="0" 
+                                        class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400">
+                                    <span class="text-gray-500 font-bold">x</span>
+                                    <input type="number" id="visitante-${partido.id}" min="0" placeholder="0" 
+                                        class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400">
+                                </div>
+                                
+                                <div class="w-1/3 text-left font-semibold text-sm truncate">${partido.equipo_visitante}</div>
+                            </div>
+                            
+                            <button onclick="enviarPronostico(${partido.id})" 
+                                class="w-full mt-4 bg-gray-700 hover:bg-green-500 hover:text-gray-900 text-xs font-bold py-2 rounded-lg transition duration-200">
+                                Guardar Predicción
+                            </button>
+                        `;
+                        contenedor.appendChild(tarjeta);
+                    });
+                } else {
+                    contenedor.innerHTML = '<p class="text-center text-gray-500 py-4">No hay partidos cargados por el momento.</p>';
+                }
+            } catch (err) {
+                contenedor.innerHTML = '<p class="text-center text-red-400 py-4">Error al conectar con el servidor.</p>';
+            }
+        }
+
+        // 3. Función para mandar el voto a la API
+        async function enviarPronostico(partidoId) {
+            alertFixture.classList.add('hidden');
+            
+            const golesLocal = document.getElementById(`local-${partidoId}`).value;
+            const golesVisitante = document.getElementById(`visitante-${partidoId}`).value;
+
+            // Validación simple
+            if (golesLocal === '' || golesVisitante === '') {
+                mostrarAlerta('Por favor, completá ambos casilleros antes de guardar.', 'bg-yellow-500/20 text-yellow-400');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/pronostico', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuario_id: parseInt(usuarioId),
+                        partido_id: partidoId,
+                        goles_local_prediccion: parseInt(golesLocal),
+                        goles_visitante_prediccion: parseInt(golesVisitante)
+                    })
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    mostrarAlerta('¡Pronóstico guardado correctamente!', 'bg-green-500/20 text-green-400');
+                } else if (data.status === 'bloqueado') {
+                    mostrarAlerta(data.message, 'bg-yellow-500/20 text-yellow-400');
+                } else {
+                    mostrarAlerta('Error: ' + data.message, 'bg-red-500/20 text-red-400');
+                }
+            } catch (err) {
+                mostrarAlerta('Error de red al intentar guardar.', 'bg-red-500/20 text-red-400');
+            }
+        }
+
+        function mostrarAlerta(mensaje, clases) {
+            alertFixture.innerText = mensaje;
+            alertFixture.className = `p-3 rounded-lg mb-4 text-sm text-center font-semibold ${clases}`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Arrancar la carga apenas abre la página
+        cargarPartidos();
+    </script>
+</body>
+</html>
