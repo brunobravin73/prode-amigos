@@ -37,19 +37,16 @@ def home():
 @app.get("/api/partidos")
 def listar_partidos(usuario_id: int = None):
     try:
-        # 1. Traemos todos los partidos de Supabase
-        respuesta_partidos = supabase.table("partidos").select("id, equipo_local, equipo_visitante, fecha_partido, estado").execute()
+        # Añadimos goles_local_real y goles_visitante_real a la consulta
+        respuesta_partidos = supabase.table("partidos").select("id, equipo_local, equipo_visitante, fecha_partido, estado, goles_local_real, goles_visitante_real").execute()
         partidos = respuesta_partidos.data
         
-        # 2. Si nos pasaron un usuario_id, buscamos sus pronósticos
         pronosticos_dic = {}
         if usuario_id:
             respuesta_pronos = supabase.table("pronosticos").select("partido_id, goles_local_prediccion, goles_visitante_prediccion").eq("usuario_id", usuario_id).execute()
-            # Lo convertimos en un diccionario para buscar rápido por partido_id
             for p in respuesta_pronos.data:
                 pronosticos_dic[p["partido_id"]] = p
 
-        # 3. Cruzamos los datos: a cada partido le pegamos su predicción si existe
         for partido in partidos:
             id_p = partido["id"]
             if id_p in pronosticos_dic:
@@ -200,5 +197,23 @@ def obtener_tabla_posiciones():
     try:
         respuesta = supabase.table("usuarios").select("id, nombre, puntos_totales").order("puntos_totales", desc=True).execute()
         return {"status": "success", "tabla": respuesta.data}
+    except Exception as e:
+        return {"status": "error", "message": repr(e)}
+
+@app.post("/api/crear-partido")
+def crear_nuevo_partido(equipo_local: str, equipo_visitante: str, fecha_partido: str, clave_admin: str = None):
+    try:
+        if clave_admin != "admin1234":
+            return {"status": "error", "message": "Clave de administrador incorrecta."}
+
+        # Insertamos el partido nuevo directo en Supabase
+        respuesta = supabase.table("partidos").insert({
+            "equipo_local": equipo_local,
+            "equipo_visitante": equipo_visitante,
+            "fecha_partido": fecha_partido,
+            "estado": "pendiente"
+        }).execute()
+
+        return {"status": "success", "partido": respuesta.data[0]}
     except Exception as e:
         return {"status": "error", "message": repr(e)}
