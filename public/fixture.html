@@ -53,52 +53,59 @@
                 if (data.status === 'success' && data.partidos.length > 0) {
                     contenedor.innerHTML = ''; // Limpiamos el "Cargando..."
                     
+
                     data.partidos.forEach(partido => {
                         const fecha = new Date(partido.fecha_partido).toLocaleString('es-AR', {
                             day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
                         });
 
                         const esFinalizado = partido.estado === 'finalizado';
-
-                        // Si está finalizado se bloquean los campos numéricos (disabled) y cambian de color
-                        const inputAtributos = esFinalizado 
-                            ? 'disabled class="w-12 p-2 rounded-lg bg-gray-800 border border-gray-700 text-center font-bold text-lg text-gray-500"' 
-                            : 'class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400"';
-                        
-                        // MEJORA 2: Si tiene un voto guardado lo usamos; si no, dejamos 0 como valor predeterminado
                         const tieneVoto = partido.voto_local !== "";
-                        const valorLocal = tieneVoto ? partido.voto_local : 0;
-                        const valorVisitante = tieneVoto ? partido.voto_visitante : 0;
 
-                        // MEJORA 1: Cambiar dinámicamente el texto del botón si ya existe una predicción
-                        let botonHtml = '';
+                        // Valores que van dentro de los casilleros numéricos
+                        // Si terminó, el casillero muestra el RESULTADO REAL. Si está pendiente, muestra el voto o 0.
+                        const valorLocal = esFinalizado ? (partido.goles_local_real ?? 0) : (tieneVoto ? partido.voto_local : 0);
+                        const valorVisitante = esFinalizado ? (partido.goles_visitante_real ?? 0) : (tieneVoto ? partido.voto_visitante : 0);
+
+                        // Estilos dinámicos para los inputs
+                        const inputAtributos = esFinalizado 
+                            ? 'disabled class="w-12 p-2 rounded-lg bg-gray-800 border border-gray-700 text-center font-black text-lg text-green-400"' 
+                            : 'class="w-12 p-2 rounded-lg bg-gray-700 border border-gray-600 text-center font-bold text-lg text-white focus:outline-none focus:border-green-400"';
+            
+                        // Pie de la tarjeta condicional
+                        let footerHtml = '';
                         if (esFinalizado) {
-                            botonHtml = `<div class="text-center text-xs font-semibold text-amber-400 bg-amber-500/10 p-2 rounded-lg mt-4">⚠️ Partido cerrado (No se permiten más apuestas)</div>`;
+                            const pronoTexto = tieneVoto ? `${partido.voto_local} x ${partido.voto_visitante}` : 'No apostaste';
+                            footerHtml = `
+                                <div class="mt-3 pt-3 border-t border-gray-700/50 flex justify-between items-center text-xs text-gray-400">
+                                    <span>🏁 Partido Finalizado</span>
+                                    <span class="bg-gray-700/40 px-2 py-1 rounded text-gray-300 font-medium">Tu prode: <strong class="text-amber-400">${pronoTexto}</strong></span>
+                                </div>`;
                         } else {
                             const textoBoton = tieneVoto ? 'Modificar Predicción' : 'Guardar Predicción';
                             const colorBoton = tieneVoto ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-700 hover:bg-green-500 hover:text-gray-900 text-white';
-                            
-                            botonHtml = `<button onclick="enviarPronostico(${partido.id})" class="w-full mt-4 ${colorBoton} text-xs font-bold py-2 rounded-lg transition duration-200">${textoBoton}</button>`;
+                
+                            footerHtml = `<button onclick="enviarPronostico(${partido.id})" class="w-full mt-4 ${colorBoton} text-xs font-bold py-2 rounded-lg transition duration-200">${textoBoton}</button>`;
                         }
 
                         const tarjeta = document.createElement('div');
                         tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md";
                         tarjeta.innerHTML = `
-                            <div class="text-center text-xs text-gray-400 mb-3 font-medium">${fecha} hs - Estado: <span class="${esFinalizado ? 'text-red-400' : 'text-green-400'} font-bold">${partido.estado}</span></div>
-                            
+                            <div class="text-center text-xs text-gray-400 mb-3 font-medium">${fecha} hs</div>
+                
                             <div class="flex items-center justify-between gap-2">
                                 <div class="w-1/3 text-right font-semibold text-sm truncate">${partido.equipo_local}</div>
-                                
+                    
                                 <div class="flex items-center justify-center gap-2 w-1/3">
                                     <input type="number" id="local-${partido.id}" min="0" placeholder="0" value="${valorLocal}" ${inputAtributos}>
                                     <span class="text-gray-500 font-bold">x</span>
                                     <input type="number" id="visitante-${partido.id}" min="0" placeholder="0" value="${valorVisitante}" ${inputAtributos}>
                                 </div>
-                                
+                    
                                 <div class="w-1/3 text-left font-semibold text-sm truncate">${partido.equipo_visitante}</div>
                             </div>
-                            
-                            ${botonHtml}
+                
+                            ${footerHtml}
                         `;
                         contenedor.appendChild(tarjeta);
                     });
