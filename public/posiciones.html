@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prode con Amigos - Tabla de Posiciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col items-center">
+
+    <div class="w-full max-w-md">
+        <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700">
+            <div>
+                <p class="text-xs text-gray-400">Torneo</p>
+                <h2 class="text-xl font-bold text-green-400">🏆 Tabla General</h2>
+            </div>
+            <a href="/fixture.html" class="bg-gray-700 hover:bg-gray-600 text-xs font-bold py-2 px-3 rounded-lg transition">
+                ⚽ Ver Fixture
+            </a>
+        </div>
+
+        <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-700/50 text-xs font-bold text-gray-400 uppercase border-b border-gray-700">
+                        <th class="p-4 w-16 text-center">Pos</th>
+                        <th class="p-4">Jugador</th>
+                        <th class="p-4 w-20 text-center">Pts</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-cuerpo">
+                    <tr>
+                        <td colspan="3" class="text-center text-gray-500 py-8">Cargando posiciones...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Validar que el usuario esté logueado
+        const usuarioId = localStorage.getItem('usuario_id');
+        if (!usuarioId) {
+            window.location.href = '/';
+        }
+
+        const tablaCuerpo = document.getElementById('tabla-cuerpo');
+
+        async function cargarPosiciones() {
+            try {
+                // Consultamos el endpoint que calcula y ordena los puntos en Python
+                const res = await fetch('/api/posiciones');
+                const data = await res.json();
+
+                if (data.status === 'success' && data.posiciones.length > 0) {
+                    tablaCuerpo.innerHTML = ''; // Limpiamos el indicador de carga
+                    
+                    data.posiciones.forEach((jugador, indice) => {
+                        const puesto = indice + 1;
+                        let puestoHtml = puesto;
+
+                        // Detalle visual: Medallas para el podio
+                        if (puesto === 1) puestoHtml = '🥇';
+                        else if (puesto === 2) puestoHtml = '🥈';
+                        else if (puesto === 3) puestoHtml = '🥉';
+
+                        const fila = document.createElement('tr');
+                        // Resaltar la fila si corresponde al usuario actual logueado
+                        const esUsuarioActual = jugador.nombre === localStorage.getItem('usuario_nombre');
+                        
+                        fila.className = `border-b border-gray-700/50 text-sm transition ${
+                            esUsuarioActual ? 'bg-green-500/10 font-bold text-green-400' : 'hover:bg-gray-700/30'
+                        }`;
+
+                        fila.innerHTML = `
+                            <td class="p-4 text-center font-bold">${puestoHtml}</td>
+                            <td class="p-4 truncate">${jugador.nombre}</td>
+                            <td class="p-4 text-center font-extrabold text-base">${jugador.puntos}</td>
+                        `;
+                        tablaCuerpo.appendChild(fila);
+                    });
+                } else {
+                    tablaCuerpo.innerHTML = 'tr><td colspan="3" class="text-center text-gray-500 py-8">No hay registros de puntos aún.</td></tr>';
+                }
+            } catch (err) {
+                tablaCuerpo.innerHTML = '<tr><td colspan="3" class="text-center text-red-400 py-8">Error al conectar con el servidor.</td></tr>';
+            }
+        }
+
+        cargarPosiciones();
+    </script>
+</body>
+</html>
