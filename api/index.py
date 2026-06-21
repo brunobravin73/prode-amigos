@@ -133,33 +133,65 @@ def guardar_pronostico(datos: VotoPronostico):
         return {"status": "error", "message": repr(e)}
 
 @app.post("/api/calcular-puntos/{partido_id}")
-def calcular_puntos_partido(partido_id: int, goles_local_real: int, goles_visitante_real: int):
+def calcular_puntos_partido(partido_id: int, goles_local_real: int, goles_visitante_real: int, clave_admin: str = None):
     try:
-        supabase.table("partidos").update({"goles_local_real": goles_local_real, "goles_visitante_real": goles_visitante_real, "estado": "finalizado"}).eq("id", partido_id).execute()
+        # CONTROL DE SEGURIDAD: Definí acá tu contraseña secreta
+        # Podés cambiar "admin1234" por la clave que vos quieras
+        if clave_admin != "admin1234":
+            return {"status": "error", "message": "Clave de administrador incorrecta o ausente."}
+
+        # 1. Actualizar el partido con el resultado real y pasarlo a 'finalizado'
+        supabase.table("partidos").update({
+            "goles_local_real": goles_local_real,
+            "goles_visitante_real": goles_visitante_real,
+            "estado": "finalizado"
+        }).eq("id", partido_id).execute()
+
+        # 2. Traer todos los pronósticos que hicieron tus amigos para este partido
         pronosticos = supabase.table("pronosticos").select("*").eq("partido_id", partido_id).execute()
+
         puntos_repartidos = []
 
+        # 3. Analizar voto por voto aplicando las reglas
         for p in pronosticos.data:
             id_voto = p["id"]
             user_id = p["usuario_id"]
             gl_pred = p["goles_local_prediccion"]
             gv_pred = p["goles_visitante_prediccion"]
+
             puntos = 0
 
+            # REGLA 1: Resultado Perfecto (3 puntos)
             if gl_pred == goles_local_real and gv_pred == goles_visitante_real:
                 puntos = 3
             else:
-                tendencia_real = 1 if goles_local_real > goles_visitante_real else (2 if goles_local_real < goles_visitante_real else 0)
-                tendencia_pred = 1 if gl_pred > gv_pred else (2 if gl_pred < gv_pred else 0)
-                if tendencia_real == tendencia_pred: puntos = 1
+                # Determinar tendencia real
+                if goles_local_real > goles_visitante_real: tendencia_real = 1
+                elif goles_local_real < goles_visitante_real: tendencia_real = 2
+                else: tendencia_real = 0
 
+                # Determinar tendencia de la predicción
+                if gl_pred > gv_pred: tendencia_pred = 1
+                elif gl_pred < gv_pred: tendencia_pred = 2
+                else: tendencia_pred = 0
+
+                # REGLA 2: Acertó ganador o empate (1 punto)
+                if tendencia_real == tendencia_pred:
+                    puntos = 1
+
+            # 4. Guardar los puntos ganados en ese pronóstico específico
             supabase.table("pronosticos").update({"puntos_ganados": puntos}).eq("id", id_voto).execute()
+
+            # 5. Sumar esos puntos al total acumulado del usuario en la tabla 'usuarios'
             user_data = supabase.table("usuarios").select("puntos_totales").eq("id", user_id).execute()
             puntos_actuales = user_data.data[0]["puntos_totales"] or 0
+            
             supabase.table("usuarios").update({"puntos_totales": puntos_actuales + puntos}).eq("id", user_id).execute()
+
             puntos_repartidos.append({"usuario_id": user_id, "puntos_asignados": puntos})
 
-        return {"status": "success", "mensaje": "Puntos calculados", "detalle": puntos_repartidos}
+        return {"status": "success", "mensaje": "Puntos calculados con éxito", "detalle": puntos_repartidos}
+
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
