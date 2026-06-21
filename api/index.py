@@ -35,10 +35,32 @@ def home():
     return {"status": "¡Prode Online!", "mensaje": "Bienvenido al prode con amigos"}
 
 @app.get("/api/partidos")
-def listar_partidos():
+def listar_partidos(usuario_id: int = None):
     try:
-        respuesta = supabase.table("partidos").select("id, equipo_local, equipo_visitante, fecha_partido, estado").execute()
-        return {"status": "success", "partidos": respuesta.data}
+        # 1. Traemos todos los partidos de Supabase
+        respuesta_partidos = supabase.table("partidos").select("id, equipo_local, equipo_visitante, fecha_partido, estado").execute()
+        partidos = respuesta_partidos.data
+        
+        # 2. Si nos pasaron un usuario_id, buscamos sus pronósticos
+        pronosticos_dic = {}
+        if usuario_id:
+            respuesta_pronos = supabase.table("pronosticos").select("partido_id, goles_local_prediccion, goles_visitante_prediccion").eq("usuario_id", usuario_id).execute()
+            # Lo convertimos en un diccionario para buscar rápido por partido_id
+            for p in respuesta_pronos.data:
+                pronosticos_dic[p["partido_id"]] = p
+
+        # 3. Cruzamos los datos: a cada partido le pegamos su predicción si existe
+        for partido in partidos:
+            id_p = partido["id"]
+            if id_p in pronosticos_dic:
+                partio_prono = pronosticos_dic[id_p]
+                partido["voto_local"] = partio_prono["goles_local_prediccion"]
+                partido["voto_visitante"] = partio_prono["goles_visitante_prediccion"]
+            else:
+                partido["voto_local"] = ""
+                partido["voto_visitante"] = ""
+
+        return {"status": "success", "partidos": partidos}
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
