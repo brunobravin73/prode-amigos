@@ -133,8 +133,8 @@ def guardar_pronostico(datos: VotoPronostico):
 def calcular_puntos_partido(partido_id: int, goles_local_real: int, goles_visitante_real: int, clave_admin: str = None):
     try:
         # CONTROL DE SEGURIDAD: Definí acá tu contraseña secreta
-        # Podés cambiar "admin1234" por la clave que vos quieras
-        if clave_admin != "admin1234":
+        # Aqui hacer cambio de clave
+        if clave_admin != "ladorni737$ñ":
             return {"status": "error", "message": "Clave de administrador incorrecta o ausente."}
 
         # 1. Actualizar el partido con el resultado real y pasarlo a 'finalizado'
@@ -203,7 +203,7 @@ def obtener_tabla_posiciones():
 @app.post("/api/crear-partido")
 def crear_nuevo_partido(equipo_local: str, equipo_visitante: str, fecha_partido: str, clave_admin: str = None):
     try:
-        if clave_admin != "admin1234":
+        if clave_admin != "ladorni737$ñ":
             return {"status": "error", "message": "Clave de administrador incorrecta."}
 
         # Insertamos el partido nuevo directo en Supabase
