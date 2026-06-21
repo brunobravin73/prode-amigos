@@ -48,14 +48,16 @@
 
         async function cargarPosiciones() {
             try {
-                // Consultamos el endpoint que calcula y ordena los puntos en Python
+                // Consultamos el endpoint en Python
                 const res = await fetch('/api/posiciones');
                 const data = await res.json();
 
-                if (data.status === 'success' && data.posiciones.length > 0) {
+                // CORRECCIÓN 1: Cambiamos data.posiciones por data.tabla
+                if (data.status === 'success' && data.tabla && data.tabla.length > 0) {
                     tablaCuerpo.innerHTML = ''; // Limpiamos el indicador de carga
                     
-                    data.posiciones.forEach((jugador, indice) => {
+                    // CORRECCIÓN 2: Recorremos data.tabla
+                    data.tabla.forEach((jugador, indice) => {
                         const puesto = indice + 1;
                         let puestoHtml = puesto;
 
@@ -65,24 +67,25 @@
                         else if (puesto === 3) puestoHtml = '🥉';
 
                         const fila = document.createElement('tr');
-                        // Resaltar la fila si corresponde al usuario actual logueado
                         const esUsuarioActual = jugador.nombre === localStorage.getItem('usuario_nombre');
                         
                         fila.className = `border-b border-gray-700/50 text-sm transition ${
                             esUsuarioActual ? 'bg-green-500/10 font-bold text-green-400' : 'hover:bg-gray-700/30'
                         }`;
 
+                        // CORRECCIÓN 3: Cambiamos jugador.puntos por jugador.puntos_totales
                         fila.innerHTML = `
                             <td class="p-4 text-center font-bold">${puestoHtml}</td>
                             <td class="p-4 truncate">${jugador.nombre}</td>
-                            <td class="p-4 text-center font-extrabold text-base">${jugador.puntos}</td>
+                            <td class="p-4 text-center font-extrabold text-base">${jugador.puntos_totales}</td>
                         `;
                         tablaCuerpo.appendChild(fila);
                     });
                 } else {
-                    tablaCuerpo.innerHTML = 'tr><td colspan="3" class="text-center text-gray-500 py-8">No hay registros de puntos aún.</td></tr>';
+                    tablaCuerpo.innerHTML = '<tr><td colspan="3" class="text-center text-gray-500 py-8">No hay registros de puntos aún.</td></tr>';
                 }
             } catch (err) {
+                console.error(err); // Esto te permite ver el error real en la consola por las dudas
                 tablaCuerpo.innerHTML = '<tr><td colspan="3" class="text-center text-red-400 py-8">Error al conectar con el servidor.</td></tr>';
             }
         }
