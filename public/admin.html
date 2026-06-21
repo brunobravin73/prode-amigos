@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prode con Amigos - Panel de Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col items-center">
+
+    <div class="w-full max-w-md">
+        <div class="mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
+            <h2 class="text-xl font-bold text-red-400">⚙️ Panel Administrador</h2>
+            <p class="text-xs text-gray-400 mt-1">Cierre de partidos y asignación de puntos</p>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6 space-y-2">
+            <label class="block text-xs font-semibold text-gray-400 uppercase">Clave Secreta Admin</label>
+            <input type="password" id="clave-admin" placeholder="Ingresá la contraseña secreta" 
+                class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 font-mono text-white text-sm focus:outline-none focus:border-red-400">
+        </div>
+
+        <h3 class="text-md font-bold mb-4 text-gray-300 uppercase tracking-wider text-xs">Partidos por Cerrar</h3>
+        <div id="alert-admin" class="hidden p-3 rounded-lg mb-4 text-sm text-center font-semibold"></div>
+
+        <div id="contenedor-admin" class="space-y-4">
+            <p class="text-center text-gray-500 py-4">Buscando partidos pendientes...</p>
+        </div>
+    </div>
+
+    <script>
+        const contenedor = document.getElementById('contenedor-admin');
+        const alertAdmin = document.getElementById('alert-admin');
+
+        async function cargarPartidosPendientes() {
+            try {
+                const res = await fetch('/api/partidos');
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    // Filtramos únicamente los partidos que estén con estado 'pendiente'
+                    const pendientes = data.partidos.filter(p => p.estado === 'pendiente');
+
+                    if (pendientes.length > 0) {
+                        contenedor.innerHTML = '';
+                        pendientes.forEach(partido => {
+                            const tarjeta = document.createElement('div');
+                            tarjeta.className = "bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-lg";
+                            tarjeta.innerHTML = `
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="w-1/3 text-right font-bold text-sm truncate text-gray-200">${partido.equipo_local}</div>
+                                    
+                                    <div class="flex items-center justify-center gap-2 w-1/3">
+                                        <input type="number" id="real-local-${partido.id}" min="0" placeholder="0" 
+                                            class="w-12 p-2 rounded-lg bg-gray-700 border border-red-500/40 text-center font-extrabold text-lg text-white focus:outline-none focus:border-red-400">
+                                        <span class="text-gray-500 font-bold">x</span>
+                                        <input type="number" id="real-visitante-${partido.id}" min="0" placeholder="0" 
+                                            class="w-12 p-2 rounded-lg bg-gray-700 border border-red-500/40 text-center font-extrabold text-lg text-white focus:outline-none focus:border-red-400">
+                                    </div>
+                                    
+                                    <div class="w-1/3 text-left font-bold text-sm truncate text-gray-200">${partido.equipo_visitante}</div>
+                                </div>
+                                <button onclick="finalizarPartido(${partido.id})" 
+                                    class="w-full mt-4 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg transition duration-200 shadow-md shadow-red-900/20">
+                                    🔒 Guardar Resultado y Calcular Puntos
+                                </button>
+                            `;
+                            contenedor.appendChild(tarjeta);
+                        });
+                    } else {
+                        contenedor.innerHTML = '<div class="text-center text-gray-500 py-8 bg-gray-800 rounded-xl border border-gray-700/50">🎉 ¡No hay partidos pendientes por cerrar!</div>';
+                    }
+                }
+            } catch (err) {
+                contenedor.innerHTML = '<p class="text-center text-red-400 py-4">Error al conectar con la API.</p>';
+            }
+        }
+
+        async function finalizarPartido(partidoId) {
+            alertAdmin.classList.add('hidden');
+            const clave = document.getElementById('clave-admin').value;
+            const gLocal = document.getElementById(`real-local-${partidoId}`).value;
+            const gVisitante = document.getElementById(`real-visitante-${partidoId}`).value;
+
+            if (clave === '' || gLocal === '' || gVisitante === '') {
+                mostrarAlerta('Completá los goles reales y la clave secreta.', 'bg-yellow-500/20 text-yellow-400');
+                return;
+            }
+
+            try {
+                // Mandamos la info y la clave como parámetros en la URL (?clave_admin=...)
+                const res = await fetch(`/api/calcular-puntos/${partidoId}?goles_local_real=${gLocal}&goles_visitante_real=${gVisitante}&clave_admin=${clave}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    mostrarAlerta('¡Partido cerrado con éxito! Puntos repartidos.', 'bg-green-500/20 text-green-400');
+                    cargarPartidosPendientes(); // Volvemos a cargar la lista para que desaparezca el partido cerrado
+                } else {
+                    mostrarAlerta('Error: ' + data.message, 'bg-red-500/20 text-red-400');
+                }
+            } catch (err) {
+                mostrarAlerta('Error de comunicación con el servidor.', 'bg-red-500/20 text-red-400');
+            }
+        }
+
+        function mostrarAlerta(mensaje, clases) {
+            alertAdmin.innerText = mensaje;
+            alertAdmin.className = `p-3 rounded-lg mb-4 text-sm text-center font-semibold ${clases}`;
+        }
+
+        cargarPartidosPendientes();
+    </script>
+</body>
+</html>
