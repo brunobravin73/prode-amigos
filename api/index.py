@@ -105,8 +105,14 @@ def login_usuario(datos: LoginUsuario):
         return {"status": "error", "message": repr(e)}
 
 @app.post("/api/pronostico")
-def guardar_o_actualizar_pronostico(usuario_id: int, partido_id: int, goles_local_prediccion: int, goles_visitante_prediccion: int):
+def guardar_o_actualizar_pronostico(datos: VotoPronostico): # <--- Usamos el modelo Pydantic para capturar el JSON
     try:
+        # Extraemos los datos del modelo recibido
+        usuario_id = datos.usuario_id
+        partido_id = datos.partido_id
+        goles_local_prediccion = datos.goles_local_prediccion
+        goles_visitante_prediccion = datos.goles_visitante_prediccion
+
         # 1. Obtener la fecha del partido desde Supabase
         partido_res = supabase.table("partidos").select("fecha_partido").eq("id", partido_id).execute()
         if not partido_res.data:
@@ -114,20 +120,19 @@ def guardar_o_actualizar_pronostico(usuario_id: int, partido_id: int, goles_loca
         
         fecha_partido_str = partido_res.data[0]["fecha_partido"]
         
-        # TRUCO: Cortamos el "+00" o "Z" del final para tomar solo los números limpios
-        # Si viene "2026-06-24 16:00:00+00", se convierte en "2026-06-24 16:00:00"
+        # TRUCO: Cortamos el "+00" o "Z" del final
         if "+" in fecha_partido_str:
             fecha_partido_str = fecha_partido_str.split("+")[0]
         elif "Z" in fecha_partido_str:
             fecha_partido_str = fecha_partido_str.replace("Z", "")
             
-        # Parseamos los números puros y le asignamos de prepo la zona horaria de Argentina
+        # Parseamos los números puros y asignamos huso horario de Argentina
         fecha_partido = datetime.fromisoformat(fecha_partido_str).replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
 
         # 2. Obtener la hora actual exacta de Argentina
         ahora_arg = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
 
-        # 3. La resta matemática ahora es perfecta (reloj local contra reloj local)
+        # 3. La resta matemática de control (-20 minutos)
         tiempo_restante = fecha_partido - ahora_arg
         limite_tiempo = timedelta(minutes=20)
 
@@ -137,7 +142,7 @@ def guardar_o_actualizar_pronostico(usuario_id: int, partido_id: int, goles_loca
                 "message": "Pronóstico bloqueado: El límite para registrar o modificar tu apuesta era hasta 20 minutos antes del inicio del partido."
             }
 
-        # 4. Guardado normal...
+        # 4. Guardado o actualización normal...
         existente = supabase.table("pronosticos").select("id").eq("usuario_id", usuario_id).eq("partido_id", partido_id).execute()
         datos_pronostico = {
             "usuario_id": usuario_id,
