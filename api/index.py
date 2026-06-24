@@ -3,6 +3,7 @@ import os
 from pydantic import BaseModel
 from supabase import create_client, Client
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 # 1. Creamos la app principal de FastAPI
 app = FastAPI()
@@ -103,28 +104,31 @@ def login_usuario(datos: LoginUsuario):
     except Exception as e:
         return {"status": "error", "message": repr(e)}
 
-
 @app.post("/api/pronostico")
 def guardar_o_actualizar_pronostico(usuario_id: int, partido_id: int, goles_local_prediccion: int, goles_visitante_prediccion: int):
     try:
-        # 1. Obtener los datos del partido para verificar la fecha y hora
+        # 1. Obtener la fecha del partido desde Supabase
         partido_res = supabase.table("partidos").select("fecha_partido").eq("id", partido_id).execute()
         if not partido_res.data:
             return {"status": "error", "message": "El partido no existe."}
         
         fecha_partido_str = partido_res.data[0]["fecha_partido"]
         
-        # Convertir la fecha del partido a un objeto datetime (Supabase suele guardarla en ISO con 'Z' o zona horaria)
-        # Reemplazamos la 'Z' si viene para procesarla de forma limpia con zona horaria UTC
-        if fecha_partido_str.endswith('Z'):
-            fecha_partido_str = fecha_partido_str.replace('Z', '+00:00')
-        fecha_partido = datetime.fromisoformat(fecha_partido_str)
+        # TRUCO: Cortamos el "+00" o "Z" del final para tomar solo los números limpios
+        # Si viene "2026-06-24 16:00:00+00", se convierte en "2026-06-24 16:00:00"
+        if "+" in fecha_partido_str:
+            fecha_partido_str = fecha_partido_str.split("+")[0]
+        elif "Z" in fecha_partido_str:
+            fecha_partido_str = fecha_partido_str.replace("Z", "")
+            
+        # Parseamos los números puros y le asignamos de prepo la zona horaria de Argentina
+        fecha_partido = datetime.fromisoformat(fecha_partido_str).replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
 
-        # 2. Obtener la hora actual con zona horaria UTC
-        ahora_utc = datetime.now(timezone.utc)
+        # 2. Obtener la hora actual exacta de Argentina
+        ahora_arg = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
 
-        # 3. Calcular la diferencia de tiempo
-        tiempo_restante = fecha_partido - ahora_utc
+        # 3. La resta matemática ahora es perfecta (reloj local contra reloj local)
+        tiempo_restante = fecha_partido - ahora_arg
         limite_tiempo = timedelta(minutes=20)
 
         if tiempo_restante < limite_tiempo:
@@ -133,9 +137,8 @@ def guardar_o_actualizar_pronostico(usuario_id: int, partido_id: int, goles_loca
                 "message": "Pronóstico bloqueado: El límite para registrar o modificar tu apuesta era hasta 20 minutos antes del inicio del partido."
             }
 
-        # 4. Si pasó la validación, procedemos a guardar o actualizar de forma normal
+        # 4. Guardado normal...
         existente = supabase.table("pronosticos").select("id").eq("usuario_id", usuario_id).eq("partido_id", partido_id).execute()
-        
         datos_pronostico = {
             "usuario_id": usuario_id,
             "partido_id": partido_id,
