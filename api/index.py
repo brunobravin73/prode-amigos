@@ -253,3 +253,53 @@ def crear_nuevo_partido(equipo_local: str, equipo_visitante: str, fecha_partido:
         return {"status": "success", "partido": respuesta.data[0]}
     except Exception as e:
         return {"status": "error", "message": repr(e)}
+
+@app.get("/api/partido/{partido_id}/pronosticos")
+def ver_pronosticos_grupo(partido_id: int):
+    try:
+        # 1. Verificar si el partido ya está cerrado (finalizado o dentro de los 20 min previos)
+        partido_res = supabase.table("partidos").select("fecha_partido, estado").eq("id", partido_id).execute()
+        if not partido_res.data:
+            return {"status": "error", "message": "El partido no existe."}
+        
+        partido = partido_res.data[0]
+        fecha_partido_str = partido["fecha_partido"]
+        estado = partido["estado"]
+        
+        if "+" in fecha_partido_str: fecha_partido_str = fecha_partido_str.split("+")[0]
+        elif "Z" in fecha_partido_str: fecha_partido_str = fecha_partido_str.replace("Z", "")
+        
+        fecha_partido = datetime.fromisoformat(fecha_partido_str).replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+        ahora_arg = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
+        
+        tiempo_restante = fecha_partido - ahora_arg
+        es_cerrado = (estado == "finalizado") or (tiempo_restante < timedelta(minutes=20))
+        
+        # Candado de seguridad: Si no está cerrado, prohibido mirar
+        if not es_cerrado:
+            return {
+                "status": "success", 
+                "bloqueado": True, 
+                "pronosticos": [], 
+                "message": "🔒 Las apuestas del grupo se revelarán 20 minutos antes del inicio del partido."
+            }
+        
+        # 2. Si pasó el candado, traemos las apuestas de este partido y los nombres de los usuarios
+        pronos_res = supabase.table("pronosticos").select("usuario_id, goles_local_prediccion, goles_visitante_prediccion, puntos_ganados").eq("partido_id", partido_id).execute()
+        usuarios_res = supabase.table("usuarios").select("id, nombre").execute()
+        
+        # Mapeamos los IDs de usuarios con sus nombres reales para cruzar la info rápido
+        mapa_nombres = {u["id"]: u["nombre"] for u in usuarios_res.data}
+        
+        lista_revelada = []
+        for p in pronos_res.data:
+            lista_revelada.append({
+                "nombre": mapa_nombres.get(p["usuario_id"], "Anónimo"),
+                "voto": f"{p['goles_local_prediccion']} x {p['goles_visitante_prediccion']}",
+                "puntos": p.get("puntos_ganados") if p.get("puntos_ganados") is not None else "-"
+            })
+            
+        return {"status": "success", "bloqueado": False, "pronosticos": lista_revelada}
+        
+    except Exception as e:
+        return {"status": "error", "message": repr(e)}
