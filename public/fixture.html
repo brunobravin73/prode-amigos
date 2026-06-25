@@ -255,7 +255,7 @@
             divGrupo.classList.remove('hidden');
             
             try {
-                const res = await fetch(`/api/partido/${partidoId}/pronocomparativo` || `/api/partido/${partidoId}/pronosticos`);
+                const res = await fetch(`/api/partido/${partidoId}/pronosticos`);
                 const data = await res.json();
                 
                 if (data.status === 'success') {
