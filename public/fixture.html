@@ -53,7 +53,16 @@
                     contenedor.innerHTML = ''; // Limpiamos el "Cargando..."
                     
                     data.partidos.forEach(partido => {
-                        const fechaPartido = new Date(partido.fecha_partido);
+                        // TRUCO: Limpiamos el +00 o la Z para que el navegador no reste horas
+                        let fechaLimpia = partido.fecha_partido;
+                        if (fechaLimpia.includes('+')) {
+                            fechaLimpia = fechaLimpia.split('+')[0];
+                        } else if (fechaLimpia.endsWith('Z')) {
+                            fechaLimpia = fechaLimpia.replace('Z', '');
+                        }
+
+                        // Ahora creamos la fecha con los números puros locales
+                        const fechaPartido = new Date(fechaLimpia);
                         const fechaTexto = fechaPartido.toLocaleString('es-AR', {
                             day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
                         });
@@ -140,6 +149,7 @@
         }
 
         // Nueva función de guardado automático y silencioso
+        // Nueva función de guardado automático y silencioso adaptada al backend JSON
         async function autoGuardar(partidoId) {
             const gLocal = document.getElementById(`local-${partidoId}`).value;
             const gVisitante = document.getElementById(`visitante-${partidoId}`).value;
@@ -152,8 +162,18 @@
             statusLabel.className = "text-[11px] font-medium text-blue-400 animate-pulse";
 
             try {
-                const res = await fetch(`/api/pronostico?usuario_id=${usuarioId}&partido_id=${partidoId}&goles_local_prediccion=${gLocal}&goles_visitante_prediccion=${gVisitante}`, {
-                    method: 'POST'
+                // Enviamos los datos estructurados en el Body como JSON
+                const res = await fetch('/api/pronostico', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        usuario_id: parseInt(usuarioId),
+                        partido_id: parseInt(partidoId),
+                        goles_local_prediccion: parseInt(gLocal),
+                        goles_visitante_prediccion: parseInt(gVisitante)
+                    })
                 });
                 const data = await res.json();
 
@@ -172,7 +192,7 @@
                     }, 2000);
 
                 } else {
-                    statusLabel.innerText = "❌ Error al guardar";
+                    statusLabel.innerText = `❌ ${data.message || 'Error al guardar'}`;
                     statusLabel.className = "text-[11px] font-bold text-red-400";
                 }
             } catch (err) {
@@ -180,7 +200,6 @@
                 statusLabel.className = "text-[11px] font-bold text-red-400";
             }
         }
-
         function mostrarAlerta(mensaje, clases) {
             alertFixture.innerText = mensaje;
             alertFixture.className = `p-3 rounded-lg mb-4 text-sm text-center font-semibold ${clases}`;
