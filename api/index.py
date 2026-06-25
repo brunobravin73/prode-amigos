@@ -170,7 +170,7 @@ def calcular_puntos_partido(partido_id: int, goles_local_real: int, goles_visita
     try:
         # CONTROL DE SEGURIDAD: Definí acá tu contraseña secreta
         # Contraseña administrador:
-        if clave_admin != "ladorni737$ñ":
+        if clave_admin != os.environ.get("ADMIN_PASSWORD"):
             return {"status": "error", "message": "Clave de administrador incorrecta o ausente."}
 
         # 1. Actualizar el partido con el resultado real y pasarlo a 'finalizado'
@@ -239,7 +239,7 @@ def obtener_tabla_posiciones():
 @app.post("/api/crear-partido")
 def crear_nuevo_partido(equipo_local: str, equipo_visitante: str, fecha_partido: str, clave_admin: str = None):
     try:
-        if clave_admin != "ladorni737$ñ":
+        if clave_admin != os.environ.get("ADMIN_PASSWORD"):
             return {"status": "error", "message": "Clave de administrador incorrecta."}
 
         # Insertamos el partido nuevo directo en Supabase
