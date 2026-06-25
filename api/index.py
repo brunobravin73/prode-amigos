@@ -38,8 +38,11 @@ def home():
 @app.get("/api/partidos")
 def listar_partidos(usuario_id: int = None):
     try:
-        # Añadimos goles_local_real y goles_visitante_real a la consulta
-        respuesta_partidos = supabase.table("partidos").select("id, equipo_local, equipo_visitante, fecha_partido, estado, goles_local_real, goles_visitante_real").execute()
+        # Añadimos .order("fecha_partido", desc=False) para que queden en orden cronológico real
+        respuesta_partidos = supabase.table("partidos")\
+            .select("id, equipo_local, equipo_visitante, fecha_partido, estado, goles_local_real, goles_visitante_real")\
+            .order("fecha_partido", desc=False)\
+            .execute()
         partidos = respuesta_partidos.data
         
         pronosticos_dic = {}
