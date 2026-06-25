@@ -269,16 +269,40 @@
                         return;
                     }
                     
-                    // Armamos la listita de apuestas de forma muy elegante
-                    divGrupo.innerHTML = data.pronosticos.map(p => `
-                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50 last:border-0">
-                            <span class="font-medium text-gray-300">${p.nombre}</span>
-                            <div class="flex gap-3">
-                                <span class="bg-gray-800 px-2 py-0.5 rounded font-mono text-amber-400 font-bold">${p.voto}</span>
-                                <span class="text-gray-500 text-[10px]">(${p.puntos} pts)</span>
+                    // Armamos la listita de apuestas con colores según los puntos obtenidos
+                    divGrupo.innerHTML = data.pronosticos.map(p => {
+                        let clasesFila = "flex justify-between items-center py-1.5 px-2 rounded-lg my-1 ";
+                        let clasesVoto = "font-mono font-bold px-2 py-0.5 rounded ";
+                        let textoPuntos = "";
+
+                        // Evaluamos los puntos para asignar los colores dinámicos
+                        if (p.puntos === 3) {
+                            // Pleno absoluto: Amarillo destacado
+                            clasesFila += "bg-amber-500/5 border border-amber-500/20 text-gray-200";
+                            clasesVoto += "bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30";
+                            textoPuntos = `<span class="text-amber-400 font-bold text-[11px]">🏆 +3 pts</span>`;
+                        } else if (p.puntos === 1) {
+                            // Acertó tendencia: Verde sutil
+                            clasesFila += "bg-green-500/5 border border-green-500/10 text-gray-300";
+                            clasesVoto += "bg-green-500/10 text-green-400";
+                            textoPuntos = `<span class="text-green-400 font-medium text-[11px]">✓ +1 pt</span>`;
+                        } else {
+                            // Cero puntos o partido que todavía no se calcularon puntos ("-")
+                            clasesFila += "text-gray-400";
+                            clasesVoto += "bg-gray-800 text-gray-500";
+                            textoPuntos = `<span class="text-gray-500 text-[10px]">${p.puntos === 0 ? '0 pts' : 'Pendiente'}</span>`;
+                        }
+
+                        return `
+                            <div class="${clasesFila}">
+                                <span class="font-medium">${p.nombre}</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="${clasesVoto}">${p.voto}</span>
+                                    <div class="w-16 text-right">${textoPuntos}</div>
+                                </div>
                             </div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 } else {
                     divGrupo.innerText = "Error al traer las apuestas.";
                 }
