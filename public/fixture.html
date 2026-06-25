@@ -145,6 +145,11 @@
                                     <span>🏁 Partido Finalizado</span>
                                     <span class="bg-gray-700/40 px-2.5 py-1 rounded-lg text-gray-300 font-medium">Tu predicción: ${pronoTexto}</span>
                                 </div>
+                                
+                                <div class="mt-2 text-center border-t border-gray-700/30 pt-2">
+                                    <button onclick="verApuestasGrupo(${partido.id})" class="text-[11px] text-blue-400 hover:underline font-medium">👥 Ver apuestas del grupo</button>
+                                    <div id="grupo-${partido.id}" class="hidden mt-2 bg-gray-900/40 rounded-xl p-2 text-left text-xs space-y-1 text-gray-400"></div>
+                                </div>
                             `;
                         } else {
                             // Si el partido está pendiente o cerrado por tiempo, dejamos los inputs numéricos normales
@@ -164,6 +169,13 @@
                                 </div>
                                 
                                 ${footerHtml}
+                                
+                                ${esCerradoPorTiempo ? `
+                                <div class="mt-2 text-center border-t border-gray-700/30 pt-2">
+                                    <button onclick="verApuestasGrupo(${partido.id})" class="text-[11px] text-blue-400 hover:underline font-medium">👥 Ver apuestas del grupo</button>
+                                    <div id="grupo-${partido.id}" class="hidden mt-2 bg-gray-900/40 rounded-xl p-2 text-left text-xs space-y-1 text-gray-400"></div>
+                                </div>
+                                ` : ''}
                             `;
                         }
 
@@ -227,6 +239,51 @@
             } catch (err) {
                 statusLabel.innerText = "❌ Error de conexión";
                 statusLabel.className = "text-[11px] font-bold text-red-400";
+            }
+        }
+        // Funciones JAVASCRIPT
+        async function verApuestasGrupo(partidoId) {
+            const divGrupo = document.getElementById(`grupo-${partidoId}`);
+            
+            // Si ya está visible, lo ocultamos (Efecto acordeón)
+            if (!divGrupo.classList.contains('hidden')) {
+                divGrupo.classList.add('hidden');
+                return;
+            }
+            
+            divGrupo.innerHTML = "Cargando apuestas...";
+            divGrupo.classList.remove('hidden');
+            
+            try {
+                const res = await fetch(`/api/partido/${partidoId}/pronocomparativo` || `/api/partido/${partidoId}/pronosticos`);
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    if (data.bloqueado) {
+                        divGrupo.innerText = data.message;
+                        return;
+                    }
+                    
+                    if (data.pronosticos.length === 0) {
+                        divGrupo.innerText = "Nadie en el grupo apostó por este partido aún.";
+                        return;
+                    }
+                    
+                    // Armamos la listita de apuestas de forma muy elegante
+                    divGrupo.innerHTML = data.pronosticos.map(p => `
+                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50 last:border-0">
+                            <span class="font-medium text-gray-300">${p.nombre}</span>
+                            <div class="flex gap-3">
+                                <span class="bg-gray-800 px-2 py-0.5 rounded font-mono text-amber-400 font-bold">${p.voto}</span>
+                                <span class="text-gray-500 text-[10px]">(${p.puntos} pts)</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    divGrupo.innerText = "Error al traer las apuestas.";
+                }
+            } catch (err) {
+                divGrupo.innerText = "Error de conexión.";
             }
         }
         function mostrarAlerta(mensaje, clases) {
